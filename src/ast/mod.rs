@@ -34,4 +34,5 @@ pub enum ShenNode {
         left: Box<ShenNode>,
         right: Box<ShenNode>,
     },
+    Nil, // Add explicit nil representation
 }

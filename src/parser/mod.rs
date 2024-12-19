@@ -41,19 +41,43 @@ fn parse_complex_expression(tokens: &[Token]) -> Result<ShenNode, String> {
 }
 
 fn parse_conditional(tokens: &[Token]) -> Result<ShenNode, String> {
-    // Basic conditional parsing
-    if tokens.len() < 5 {
+    // More robust conditional parsing
+    if tokens.len() < 4 {
         return Err("Invalid conditional".to_string());
     }
 
-    let condition_tokens = &tokens[2..3];
-    let true_branch_tokens = &tokens[3..4];
-    let false_branch_tokens = if tokens.len() > 4 { &tokens[4..5] } else { &[] };
+    // Find the end of the condition
+    let mut condition_end = 2;
+    let mut paren_count = 0;
+    for (i, token) in tokens[2..].iter().enumerate() {
+        match token {
+            Token::OpenParen => paren_count += 1,
+            Token::CloseParen => {
+                if paren_count == 0 {
+                    condition_end = i + 2;
+                    break;
+                }
+                paren_count -= 1;
+            },
+            _ => {}
+        }
+    }
 
+    let condition_tokens = &tokens[2..condition_end];
+    let true_branch_tokens = &tokens[condition_end..];
+    
     let condition = parse_expression(condition_tokens)?;
-    let true_branch = parse_expression(true_branch_tokens)?;
-    let false_branch = if !false_branch_tokens.is_empty() {
-        Some(Box::new(parse_expression(false_branch_tokens)?))
+    
+    // Handle multiple possible true branch scenarios
+    let true_branch = if !true_branch_tokens.is_empty() {
+        parse_expression(true_branch_tokens)?
+    } else {
+        return Err("Missing true branch in conditional".to_string());
+    };
+
+    // Check for false branch
+    let false_branch = if true_branch_tokens.len() > 1 {
+        Some(Box::new(parse_expression(&true_branch_tokens[1..])?))
     } else {
         None
     };
