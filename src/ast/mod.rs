@@ -14,5 +14,14 @@ pub enum ShenNode {
     Literal {
         value: String,
     },
-    // Add more node types as needed
+    Symbol {
+        name: String,
+    },
+    List {
+        elements: Vec<ShenNode>,
+    },
+    Lambda {
+        args: Vec<String>,
+        body: Box<ShenNode>,
+    },
 }
