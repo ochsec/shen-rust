@@ -24,4 +24,14 @@ pub enum ShenNode {
         args: Vec<String>,
         body: Box<ShenNode>,
     },
+    Conditional {
+        condition: Box<ShenNode>,
+        true_branch: Box<ShenNode>,
+        false_branch: Option<Box<ShenNode>>,
+    },
+    BinaryOperation {
+        operator: String,
+        left: Box<ShenNode>,
+        right: Box<ShenNode>,
+    },
 }
