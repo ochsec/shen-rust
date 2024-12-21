@@ -1,10 +1,10 @@
 import os
 import logging
 import base64
-import openai
+from openai import OpenAI
 
-# Initialize OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class GPTImageTranscriber:
     def __init__(self, image_dir, output_file):
@@ -27,7 +27,7 @@ class GPTImageTranscriber:
         try:
             base64_image = self._encode_image(image_path)
             
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {
