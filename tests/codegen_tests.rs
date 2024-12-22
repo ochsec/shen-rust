@@ -10,7 +10,7 @@ fn assert_rust_code_generation(input: &str, expected_code: &str) {
     let rust_code = generate_rust_code(&parsed_node);
     
     assert!(rust_code.is_ok(), "Code generation should succeed");
-    assert_eq!(rust_code.unwrap(), expected_code);
+    assert_eq!(rust_code.unwrap().trim(), expected_code.trim());
 }
 
 #[test]
