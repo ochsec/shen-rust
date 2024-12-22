@@ -8,17 +8,12 @@ use token::{Token, tokenize};
 
 pub fn parse_shen_source(input: &str) -> Result<ShenNode, TranspilerError> {
     let tokens = tokenize(input)
-        .map_err(|e| TranspilerError::SyntaxError(e))?;
+        .map_err(|e| ParseError::Syntax(e.to_string()))?;
     
     parse_expression(&tokens)
         .map_err(|e| match e {
-            ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
-            ParseError::Token(token, msg) => TranspilerError::new_parse_error(
-                &token, 
-                &msg, 
-                0,  // Line number tracking would be added later
-                0   // Column number tracking would be added later
-            ),
+            ParseError::Syntax(msg) => ParseError::Syntax(msg),
+            ParseError::Token(token, msg) => ParseError::Token(token, msg),
         })
 }
 
@@ -29,9 +24,9 @@ enum ParseError {
     Token(String, String),
 }
 
-fn parse_expression(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_expression(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     if tokens.is_empty() {
-        return Err("Empty input".to_string());
+        return Err(ParseError::Syntax("Empty input".to_string()));
     }
 
     match &tokens[0] {
@@ -39,13 +34,13 @@ fn parse_expression(tokens: &[Token]) -> Result<ShenNode, String> {
         Token::Defun => parse_function_definition(tokens),
         Token::Lambda => parse_lambda(tokens),
         Token::Identifier(_) => parse_symbol_or_application(tokens),
-        _ => Err("Unexpected token".to_string())
+        _ => Err(ParseError::Syntax("Unexpected token".to_string()))
     }
 }
 
-fn parse_complex_expression(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_complex_expression(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     if tokens.len() < 2 {
-        return Err("Invalid complex expression".to_string());
+        return Err(ParseError::Syntax("Invalid complex expression".to_string()));
     }
 
     match &tokens[1] {
@@ -55,10 +50,10 @@ fn parse_complex_expression(tokens: &[Token]) -> Result<ShenNode, String> {
     }
 }
 
-fn parse_conditional(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_conditional(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     // More robust conditional parsing
     if tokens.len() < 4 {
-        return Err("Invalid conditional".to_string());
+        return Err(ParseError::Syntax("Invalid conditional".to_string()));
     }
 
     // Find the end of the condition
@@ -87,7 +82,7 @@ fn parse_conditional(tokens: &[Token]) -> Result<ShenNode, String> {
     let true_branch = if !true_branch_tokens.is_empty() {
         parse_expression(true_branch_tokens)?
     } else {
-        return Err("Missing true branch in conditional".to_string());
+        return Err(ParseError::Syntax("Missing true branch in conditional".to_string()));
     };
 
     // Check for false branch
@@ -104,10 +99,10 @@ fn parse_conditional(tokens: &[Token]) -> Result<ShenNode, String> {
     })
 }
 
-fn parse_application(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_application(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     // Basic application parsing
     if tokens.len() < 2 {
-        return Err("Invalid application".to_string());
+        return Err(ParseError::Syntax("Invalid application".to_string()));
     }
 
     let func_token = &tokens[1];
@@ -115,14 +110,14 @@ fn parse_application(tokens: &[Token]) -> Result<ShenNode, String> {
 
     let func = match func_token {
         Token::Identifier(name) => ShenNode::Symbol { name: name.clone() },
-        _ => return Err("Invalid function in application".to_string()),
+        _ => return Err(ParseError::Syntax("Invalid function in application".to_string())),
     };
 
     let mut args = Vec::new();
     for arg_token in args_tokens {
         match arg_token {
             Token::Identifier(name) => args.push(ShenNode::Symbol { name: name.clone() }),
-            _ => return Err("Invalid argument in application".to_string()),
+            _ => return Err(ParseError::Syntax(format!("Unsupported argument type: {:?}", arg_token))),
         }
     }
 
@@ -132,10 +127,10 @@ fn parse_application(tokens: &[Token]) -> Result<ShenNode, String> {
     })
 }
 
-fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     // Basic implementation, needs more robust parsing
     if tokens.len() < 4 {
-        return Err("Invalid function definition".to_string());
+        return Err(ParseError::Syntax("Invalid function definition".to_string()));
     }
 
     match &tokens[1..] {
@@ -156,7 +151,7 @@ fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, String> {
                     _ if !in_args => {
                         body_tokens.push(token.clone());
                     },
-                    _ => return Err("Invalid function definition".to_string()),
+                    _ => return Err(ParseError::Syntax("Invalid function definition".to_string())),
                 }
             }
 
@@ -168,20 +163,20 @@ fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, String> {
                 body: Box::new(body),
             })
         },
-        _ => Err("Invalid function definition".to_string()),
+        _ => Err(ParseError::Syntax("Invalid function definition".to_string())),
     }
 }
 
-fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     // Lambda syntax: (lambda (arg1 arg2 ...) body)
     if tokens.len() < 4 {
-        return Err("Invalid lambda expression".to_string());
+        return Err(ParseError::Syntax("Invalid lambda expression".to_string()));
     }
 
     // Find the arguments list
     let args_start = match tokens.get(1) {
         Some(Token::OpenParen) => 2,
-        _ => return Err("Lambda arguments must be enclosed in parentheses".to_string()),
+        _ => return Err(ParseError::Syntax("Lambda arguments must be enclosed in parentheses".to_string())),
     };
 
     // Collect lambda arguments
@@ -196,7 +191,7 @@ fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, String> {
                 body_start = args_start + i + 1;
                 break;
             },
-            _ => return Err("Invalid lambda argument".to_string()),
+            _ => return Err(ParseError::Syntax("Invalid lambda argument".to_string())),
         }
     }
 
@@ -210,10 +205,10 @@ fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, String> {
     })
 }
 
-fn parse_list(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_list(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     // Ensure the list starts and ends with parentheses
     if tokens.first() != Some(&Token::OpenParen) || tokens.last() != Some(&Token::CloseParen) {
-        return Err("Invalid list: must be enclosed in parentheses".to_string());
+        return Err(ParseError::Syntax("Invalid list: must be enclosed in parentheses".to_string()));
     }
 
     // Remove outer parentheses
@@ -234,9 +229,9 @@ fn parse_list(tokens: &[Token]) -> Result<ShenNode, String> {
 }
 
 // Helper function to parse individual list elements
-fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), String> {
+fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), ParseError> {
     if tokens.is_empty() {
-        return Err("Unexpected end of list".to_string());
+        return Err(ParseError::Syntax("Unexpected end of list".to_string()));
     }
 
     match tokens[0] {
@@ -260,7 +255,7 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), String> {
             }
 
             if end_index == 0 {
-                return Err("Unbalanced parentheses in list".to_string());
+                return Err(ParseError::Syntax("Unbalanced parentheses in list".to_string()));
             }
 
             // Recursively parse nested structure
@@ -290,89 +285,32 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), String> {
             // Numeric literal (convert to string for simplicity)
             Ok((ShenNode::Literal { value: value.to_string() }, 1))
         },
-        _ => Err(format!("Unsupported list element: {:?}", tokens[0])),
+        _ => Err(ParseError::Syntax(format!("Unsupported list element: {:?}", tokens[0]))),
     }
 }
 
-fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, TranspilerError> {
+fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     if tokens.is_empty() {
-        return Err(TranspilerError::new_parse_error(
-            "EMPTY", 
-            "Empty input for symbol or application", 
-            0, 
-            0
-        ));
+        return Err(ParseError::Syntax("Empty input for symbol or application".to_string()));
     }
 
-    // Single token case: Simple symbol
-    if tokens.len() == 1 {
-        match &tokens[0] {
-            Token::Identifier(name) => {
-                return Ok(ShenNode::Symbol { 
-                    name: name.clone(), 
-                    type_hint: ShenType::Symbol 
-                });
-            },
-            Token::Number(value) => {
-                return Ok(ShenNode::Literal { 
-                    value: ShenValue::Float(*value) 
-                });
-            },
-            Token::Literal(value) => {
-                return Ok(ShenNode::Literal { 
-                    value: ShenValue::String(value.clone()) 
-                });
-            },
-            token => return Err(TranspilerError::new_parse_error(
-                &format!("{:?}", token),
-                "Unsupported token for symbol",
-                0,  // Line number would ideally come from tokenizer
-                0   // Column number would ideally come from tokenizer
-            )),
-        }
-    }
-
-    // Multiple tokens case: Potential function application
     match &tokens[0] {
-        Token::Identifier(func_name) => {
-            let mut args = Vec::new();
-            
-            // Parse arguments
-            for token in &tokens[1..] {
-                match token {
-                    Token::Identifier(arg_name) => {
-                        args.push(ShenNode::Symbol { 
-                            name: arg_name.clone(), 
-                            type_hint: ShenType::Symbol 
-                        });
-                    },
-                    Token::Number(value) => {
-                        args.push(ShenNode::Literal { 
-                            value: ShenValue::Float(*value) 
-                        });
-                    },
-                    Token::Literal(value) => {
-                        args.push(ShenNode::Literal { 
-                            value: ShenValue::String(value.clone()) 
-                        });
-                    },
-                    Token::OpenParen => {
-                        // Nested expression handling
-                        let nested_expr = parse_complex_expression(&tokens[1..])?;
-                        args.push(nested_expr);
-                    },
-                    _ => return Err(format!("Unsupported argument type: {:?}", token)),
-                }
-            }
-
-            Ok(ShenNode::Application {
-                func: Box::new(ShenNode::Symbol { 
-                    name: func_name.clone(), 
-                    type_hint: ShenType::Function 
-                }),
-                args,
+        Token::Identifier(name) => {
+            Ok(ShenNode::Symbol { 
+                name: name.clone(), 
+                type_hint: ShenType::Symbol 
             })
         },
-        _ => Err("Invalid symbol or application".to_string()),
+        Token::Number(value) => {
+            Ok(ShenNode::Literal { 
+                value: ShenValue::Float(*value) 
+            })
+        },
+        Token::Literal(value) => {
+            Ok(ShenNode::Literal { 
+                value: ShenValue::String(value.clone()) 
+            })
+        },
+        _ => Err(ParseError::Syntax(format!("Unsupported token for symbol: {:?}", tokens[0]))),
     }
 }
