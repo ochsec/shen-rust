@@ -389,30 +389,36 @@ fn parse_list(tokens: &[Token]) -> Result<ShenNode, ParseError> {
         ));
     }
 
-    // Remove outer parentheses
-    let inner_tokens = &tokens[1..tokens.len() - 1];
+    // Check for explicit list creation
+    if tokens.get(1) == Some(&Token::List) {
+        // Remove outer parentheses and 'list' token
+        let inner_tokens = &tokens[2..tokens.len() - 1];
 
-    // Parse list elements
-    let mut elements = Vec::new();
-    let mut current_pos = 0;
+        // Parse list elements
+        let mut elements = Vec::new();
+        let mut current_pos = 0;
 
-    while current_pos < inner_tokens.len() {
-        // Handle nested structures (nested lists, applications, etc.)
-        let (element, consumed) = parse_list_element(&inner_tokens[current_pos..])?;
-        elements.push(element);
-        current_pos += consumed;
+        while current_pos < inner_tokens.len() {
+            // Handle nested structures (nested lists, applications, etc.)
+            let (element, consumed) = parse_list_element(&inner_tokens[current_pos..])?;
+            elements.push(element);
+            current_pos += consumed;
+        }
+
+        // Infer element type from first element if possible
+        let element_type = elements
+            .first()
+            .map(|elem| elem.get_type())
+            .unwrap_or(ShenType::Symbol);
+
+        Ok(ShenNode::List {
+            elements,
+            element_type,
+        })
+    } else {
+        // Fallback to parsing as a generic list or application
+        parse_complex_expression(tokens)
     }
-
-    // Infer element type from first element if possible
-    let element_type = elements
-        .first()
-        .map(|elem| elem.get_type())
-        .unwrap_or(ShenType::Symbol);
-
-    Ok(ShenNode::List {
-        elements,
-        element_type,
-    })
 }
 
 // Helper function to parse individual list elements
