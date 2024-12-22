@@ -8,10 +8,25 @@ use token::{Token, tokenize};
 
 pub fn parse_shen_source(input: &str) -> Result<ShenNode, TranspilerError> {
     let tokens = tokenize(input)
-        .map_err(|e| TranspilerError::ParseError(e))?;
+        .map_err(|e| TranspilerError::SyntaxError(e))?;
     
     parse_expression(&tokens)
-        .map_err(|e| TranspilerError::ParseError(e.to_string()))
+        .map_err(|e| match e {
+            ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
+            ParseError::Token(token, msg) => TranspilerError::new_parse_error(
+                &token, 
+                &msg, 
+                0,  // Line number tracking would be added later
+                0   // Column number tracking would be added later
+            ),
+        })
+}
+
+// New error enum for more granular parsing errors
+#[derive(Debug)]
+enum ParseError {
+    Syntax(String),
+    Token(String, String),
 }
 
 fn parse_expression(tokens: &[Token]) -> Result<ShenNode, String> {
