@@ -321,7 +321,7 @@ fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     for (i, token) in tokens[args_start..].iter().enumerate() {
         match token {
             Token::Identifier(arg) => {
-                args.push(arg.clone());
+                args.push((arg.clone(), ShenType::Symbol));
             },
             Token::CloseParen => {
                 body_start = args_start + i + 1;
@@ -335,8 +335,12 @@ fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     let body_tokens = &tokens[body_start..];
     let body = parse_expression(body_tokens)?;
 
+    // Infer return type from body
+    let return_type = body.get_type();
+
     Ok(ShenNode::Lambda {
         args,
+        return_type,
         body: Box::new(body),
     })
 }
