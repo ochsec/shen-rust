@@ -1,49 +1,58 @@
-# The Book of Shen: A Comprehensive Overview
+# Shen Kernel Specification
 
-## Introduction
-"The Book of Shen" by Mark Tarver is a comprehensive exploration of functional programming, type theory, and language design, focusing on the Shen programming language. The book traces the evolution of functional programming and presents Shen as a sophisticated, type-secure functional language.
+## Core Language Design
+- Minimal functional language with 50 primitive functions
+- Compilation target: Kλ (Kappa Lambda)
+- Supports higher-order functions and currying
+- Pattern-matching function definitions
+- Non-strict evaluation strategy
+- Recursive type system
 
-## Historical Context
-### Early Functional Programming
-- Originated with lambda calculus by Alonzo Church and Alan Turing
-- Early implementations like Lisp by John McCarthy
-- Challenges in performance and practical adoption
+## Primitive Function Categories
+1. Boolean Operations
+   - if, and, or, not
+   - Supports non-strict evaluation
 
-### Development of Shen
-- Evolved from earlier languages SEQUEL and Qi
-- Designed to be portable, type-secure, and powerful
-- Implements advanced features like pattern matching, macros, and sequent calculus type checking
+2. Computational Primitives
+   - Numeric operations (+, -, *, /)
+   - Comparison operations (>, <, >=, <=)
+   - Type checking (number?, symbol?, string?)
 
-## Key Language Features
-1. Functional Programming Paradigm
-   - Top-down programming methodology
-   - Higher-order functions
-   - Recursion and pattern matching
-   - Lazy evaluation
+3. List Manipulation
+   - cons, hd, tl
+   - append, map
+   - Pattern-matching list destructuring
 
-2. Type System
-   - Static and strong typing
-   - Polymorphic types
-   - Sequent calculus for type checking
-   - Recursive and enumeration types
+4. Control Flow
+   - Recursion with tail-call optimization
+   - Non-deterministic choice points
+   - Backtracking support
 
-3. Advanced Capabilities
-   - Macros and metaprogramming
-   - Non-deterministic algorithms
-   - Backtracking
-   - Lambda calculus interpreter
-   - Logic programming support
+5. Type System
+   - Static, strong typing
+   - Sequent calculus type inference
+   - Polymorphic type operators
+   - Recursive type definitions
 
-## Technical Innovations
-- Kλ (Kappa Lambda): A minimal functional language
-- Compilation strategies
-- Type inference and checking
-- Extensible type system using sequent calculus
+6. Metaprogramming
+   - Macro expansion
+   - eval and eval-kl functions
+   - Package system for namespace management
 
-## Philosophical Approach
-- Emphasizes clarity and declarative programming
-- Focuses on mathematical foundations of computation
-- Supports powerful abstraction and code reuse
+## Compilation Strategy
+- Translate Shen code to Kλ
+- Use triple-stack method for pattern matching
+- Perform compile-time type checking
+- Support platform-independent compilation
 
-## Conclusion
-Shen represents a sophisticated approach to functional programming, integrating advanced type theory, logic programming, and language design principles into a cohesive and powerful programming environment.
+## Key Language Invariants
+- All functions compilable to Kλ
+- Type safety
+- Referential transparency
+- Minimal core with extensible type system
+
+## Semantic Foundations
+- Based on lambda calculus
+- Supports higher-order functions
+- Implements call-by-need evaluation
+- Provides mechanism for defining new type systems
