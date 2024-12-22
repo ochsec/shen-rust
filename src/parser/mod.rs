@@ -365,7 +365,15 @@ fn parse_list(tokens: &[Token]) -> Result<ShenNode, ParseError> {
         current_pos += consumed;
     }
 
-    Ok(ShenNode::List { elements })
+    // Infer element type from first element if possible
+    let element_type = elements.first()
+        .map(|elem| elem.get_type())
+        .unwrap_or(ShenType::Symbol);
+
+    Ok(ShenNode::List { 
+        elements, 
+        element_type 
+    })
 }
 
 // Helper function to parse individual list elements
