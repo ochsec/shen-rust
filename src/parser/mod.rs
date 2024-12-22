@@ -280,6 +280,74 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), String> {
 }
 
 fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, String> {
-    // Placeholder for symbol or application parsing
-    Err("Symbol/Application parsing not implemented".to_string())
+    if tokens.is_empty() {
+        return Err("Empty input for symbol or application".to_string());
+    }
+
+    // Single token case: Simple symbol
+    if tokens.len() == 1 {
+        match &tokens[0] {
+            Token::Identifier(name) => {
+                return Ok(ShenNode::Symbol { 
+                    name: name.clone(), 
+                    type_hint: ShenType::Symbol 
+                });
+            },
+            Token::Number(value) => {
+                return Ok(ShenNode::Literal { 
+                    value: ShenValue::Float(*value) 
+                });
+            },
+            Token::Literal(value) => {
+                return Ok(ShenNode::Literal { 
+                    value: ShenValue::String(value.clone()) 
+                });
+            },
+            _ => return Err(format!("Unsupported token for symbol: {:?}", tokens[0])),
+        }
+    }
+
+    // Multiple tokens case: Potential function application
+    match &tokens[0] {
+        Token::Identifier(func_name) => {
+            let mut args = Vec::new();
+            
+            // Parse arguments
+            for token in &tokens[1..] {
+                match token {
+                    Token::Identifier(arg_name) => {
+                        args.push(ShenNode::Symbol { 
+                            name: arg_name.clone(), 
+                            type_hint: ShenType::Symbol 
+                        });
+                    },
+                    Token::Number(value) => {
+                        args.push(ShenNode::Literal { 
+                            value: ShenValue::Float(*value) 
+                        });
+                    },
+                    Token::Literal(value) => {
+                        args.push(ShenNode::Literal { 
+                            value: ShenValue::String(value.clone()) 
+                        });
+                    },
+                    Token::OpenParen => {
+                        // Nested expression handling
+                        let nested_expr = parse_complex_expression(&tokens[1..])?;
+                        args.push(nested_expr);
+                    },
+                    _ => return Err(format!("Unsupported argument type: {:?}", token)),
+                }
+            }
+
+            Ok(ShenNode::Application {
+                func: Box::new(ShenNode::Symbol { 
+                    name: func_name.clone(), 
+                    type_hint: ShenType::Function 
+                }),
+                args,
+            })
+        },
+        _ => Err("Invalid symbol or application".to_string()),
+    }
 }
