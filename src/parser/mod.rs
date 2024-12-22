@@ -10,11 +10,47 @@ pub fn parse_shen_source(input: &str) -> Result<ShenNode, TranspilerError> {
     let tokens = tokenize(input)
         .map_err(|e| TranspilerError::SyntaxError(e.to_string()))?;
     
-    parse_expression(&tokens)
-        .map_err(|e| match e {
-            ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
-            ParseError::Token(token, msg) => TranspilerError::SyntaxError(format!("{}: {}", token, msg)),
-        })
+    // Ensure tokens are not empty
+    if tokens.is_empty() {
+        return Err(TranspilerError::SyntaxError("Empty input".to_string()));
+    }
+
+    // Handle top-level parsing scenarios
+    match tokens[0] {
+        Token::OpenParen => {
+            // Handle complex expressions like function definitions, conditionals, etc.
+            parse_complex_expression(&tokens)
+                .map_err(|e| match e {
+                    ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
+                    ParseError::Token(token, msg) => TranspilerError::SyntaxError(format!("{}: {}", token, msg)),
+                })
+        },
+        Token::Defun => {
+            // Handle function definitions
+            parse_function_definition(&tokens)
+                .map_err(|e| match e {
+                    ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
+                    ParseError::Token(token, msg) => TranspilerError::SyntaxError(format!("{}: {}", token, msg)),
+                })
+        },
+        Token::Lambda => {
+            // Handle lambda expressions
+            parse_lambda(&tokens)
+                .map_err(|e| match e {
+                    ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
+                    ParseError::Token(token, msg) => TranspilerError::SyntaxError(format!("{}: {}", token, msg)),
+                })
+        },
+        Token::Identifier(_) | Token::Number(_) | Token::Literal(_) => {
+            // Handle simple symbols, literals
+            parse_symbol_or_application(&tokens)
+                .map_err(|e| match e {
+                    ParseError::Syntax(msg) => TranspilerError::SyntaxError(msg),
+                    ParseError::Token(token, msg) => TranspilerError::SyntaxError(format!("{}: {}", token, msg)),
+                })
+        },
+        _ => Err(TranspilerError::SyntaxError(format!("Unsupported top-level token: {:?}", tokens[0]))),
+    }
 }
 
 // New error enum for more granular parsing errors
