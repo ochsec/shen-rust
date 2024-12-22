@@ -280,7 +280,7 @@ fn test_parse_list_expression() {
             for (i, elem) in elements.iter().enumerate() {
                 match elem {
                     ShenNode::Literal { value } => {
-                        assert_eq!(*value, );
+                        assert_eq!(*value, ShenValue::Float((i + 1) as f64));
                     }
                     _ => panic!("Expected literal elements"),
                 }
