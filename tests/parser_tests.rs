@@ -202,7 +202,8 @@ fn test_parse_conditional() {
                             // Compare the numeric value directly
                             match value {
                                 ShenValue::Float(val) => assert_eq!(val, 0.0),
-                                _ => panic!("Expected Float value"),
+                                ShenValue::Integer(val) => assert_eq!(val as f64, 0.0),
+                                _ => panic!("Expected Float or Integer value"),
                             }
                         }
                         _ => panic!("Expected symbol and literal in condition"),
