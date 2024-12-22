@@ -464,22 +464,28 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), ParseError>
         }
         Token::Identifier(ref name) => {
             // Simple symbol
-            Ok((ShenNode::Symbol { name: name.clone() }, 1))
+            Ok((
+                ShenNode::Symbol { 
+                    name: name.clone(), 
+                    type_hint: ShenType::Symbol 
+                }, 
+                1
+            ))
         }
         Token::Literal(ref value) => {
             // String literal
             Ok((
                 ShenNode::Literal {
-                    value: value.clone(),
+                    value: ShenValue::String(value.clone()),
                 },
                 1,
             ))
         }
         Token::Number(value) => {
-            // Numeric literal (convert to string for simplicity)
+            // Numeric literal 
             Ok((
                 ShenNode::Literal {
-                    value: value.to_string(),
+                    value: ShenValue::Float(value),
                 },
                 1,
             ))
