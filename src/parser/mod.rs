@@ -158,8 +158,41 @@ fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, String> {
 }
 
 fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, String> {
-    // Placeholder for lambda parsing
-    Err("Lambda parsing not implemented".to_string())
+    // Lambda syntax: (lambda (arg1 arg2 ...) body)
+    if tokens.len() < 4 {
+        return Err("Invalid lambda expression".to_string());
+    }
+
+    // Find the arguments list
+    let args_start = match tokens.get(1) {
+        Some(Token::OpenParen) => 2,
+        _ => return Err("Lambda arguments must be enclosed in parentheses".to_string()),
+    };
+
+    // Collect lambda arguments
+    let mut args = Vec::new();
+    let mut body_start = args_start;
+    for (i, token) in tokens[args_start..].iter().enumerate() {
+        match token {
+            Token::Identifier(arg) => {
+                args.push(arg.clone());
+            },
+            Token::CloseParen => {
+                body_start = args_start + i + 1;
+                break;
+            },
+            _ => return Err("Invalid lambda argument".to_string()),
+        }
+    }
+
+    // Parse lambda body
+    let body_tokens = &tokens[body_start..];
+    let body = parse_expression(body_tokens)?;
+
+    Ok(ShenNode::Lambda {
+        args,
+        body: Box::new(body),
+    })
 }
 
 fn parse_list(tokens: &[Token]) -> Result<ShenNode, String> {
