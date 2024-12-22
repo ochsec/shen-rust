@@ -8,15 +8,15 @@ use crate::error::TranspilerError;
 
 pub fn generate_rust_code(node: &ShenNode) -> Result<String, TranspilerError> {
     match node {
-        ShenNode::Function { name, args, body } => {
+        ShenNode::Function { name, args, body, return_type } => {
             let args_str = args.iter()
-                .map(|arg| format!("{}: impl Clone", arg))
+                .map(|(name, _type)| format!("{}: impl Clone", name))
                 .collect::<Vec<_>>()
                 .join(", ");
             let body_str = generate_rust_code(body)?;
-            Ok(format!("fn main() {{\n    {}\n}}", body_str))
+            Ok(format!("fn {}({}) -> impl Clone {{\n    {}\n}}", name, args_str, body_str))
         },
-        ShenNode::Symbol { name } => Ok(name.clone()),
+        ShenNode::Symbol { name, type_hint } => Ok(name.clone()),
         ShenNode::Nil => Ok("None".to_string()),
         ShenNode::Application { func, args } => {
             let func_str = generate_rust_code(func)?;
@@ -32,7 +32,7 @@ pub fn generate_rust_code(node: &ShenNode) -> Result<String, TranspilerError> {
                 _ => Ok(format!("{}({})", func_str, args_str)),
             }
         },
-        ShenNode::BinaryOperation { operator, left, right } => {
+        ShenNode::BinaryOperation { operator, left, right, result_type } => {
             let left_str = generate_rust_code(left)?;
             let right_str = generate_rust_code(right)?;
             
@@ -61,8 +61,11 @@ pub fn generate_rust_code(node: &ShenNode) -> Result<String, TranspilerError> {
                 false_str
             ))
         },
-        ShenNode::Lambda { args, body } => {
-            let args_str = args.join(", ");
+        ShenNode::Lambda { args, body, return_type } => {
+            let args_str = args.iter()
+                .map(|(name, _type)| name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
             let body_str = generate_rust_code(body)?;
             Ok(format!("|{}| {{ {} }}", args_str, body_str))
         },
