@@ -2,7 +2,7 @@
 
 mod token;
 
-use crate::ast::ShenNode;
+use crate::ast::{ShenNode, ShenType, ShenValue};
 use crate::error::TranspilerError;
 use token::{Token, tokenize};
 

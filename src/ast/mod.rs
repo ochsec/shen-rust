@@ -1,6 +1,7 @@
 //! Abstract Syntax Tree for Shen language constructs
 
 #[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ShenType {
     Integer,
     Float,
