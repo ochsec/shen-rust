@@ -459,7 +459,8 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), ParseError>
                 match nested_tokens[1] {
                     Token::Lambda => parse_lambda(nested_tokens),
                     Token::Defun => parse_function_definition(nested_tokens),
-                    Token::Identifier(_) => parse_application(nested_tokens),
+                    Token::Identifier(_) | Token::Operator(_) => parse_application(nested_tokens),
+                    Token::If => parse_conditional(nested_tokens),
                     _ => parse_list(nested_tokens),
                 }
             } else {
@@ -495,6 +496,35 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), ParseError>
                 },
                 1,
             ))
+        }
+        Token::Operator(ref op) => {
+            // Handle operators as symbols
+            Ok((
+                ShenNode::Symbol {
+                    name: op.clone(),
+                    type_hint: ShenType::Symbol,
+                },
+                1,
+            ))
+        }
+        Token::If | Token::Defun | Token::Lambda => {
+            // Handle special tokens as symbols
+            Ok((
+                ShenNode::Symbol {
+                    name: match tokens[0] {
+                        Token::If => "if".to_string(),
+                        Token::Defun => "defun".to_string(),
+                        Token::Lambda => "lambda".to_string(),
+                        _ => unreachable!(),
+                    },
+                    type_hint: ShenType::Symbol,
+                },
+                1,
+            ))
+        }
+        Token::CloseParen => {
+            // Ignore closing parenthesis in list parsing
+            Err(ParseError::Syntax("Unexpected closing parenthesis".to_string()))
         }
         _ => Err(ParseError::Syntax(format!(
             "Unsupported list element: {:?}",
