@@ -6,6 +6,7 @@ pub enum Token {
     Lambda,
     If,
     Let,
+    List,  // Add List token
     Identifier(String),
     Literal(String),
     Symbol(String),
@@ -62,6 +63,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
                     "lambda" | "fn" => Token::Lambda,
                     "if" => Token::If,
                     "let" => Token::Let,
+                    "list" => Token::List,  // Add list token recognition
                     _ => Token::Identifier(identifier),
                 });
             },
