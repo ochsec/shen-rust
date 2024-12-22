@@ -13,7 +13,7 @@ fn test_parse_simple_function() {
     
     let node = result.unwrap();
     match node {
-        ShenNode::Function { name, args, body, .. } => {
+        ShenNode::Function { name, args, body, return_type, .. } => {
             assert_eq!(name, "identity");
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].0, "x");
@@ -27,6 +27,9 @@ fn test_parse_simple_function() {
                 },
                 _ => panic!("Expected a symbol body"),
             }
+            
+            // Check return type inference
+            assert_eq!(return_type, ShenType::Symbol);
         },
         _ => panic!("Expected a function node"),
     }
@@ -41,7 +44,7 @@ fn test_parse_function_with_multiple_args() {
     
     let node = result.unwrap();
     match node {
-        ShenNode::Function { name, args, body, .. } => {
+        ShenNode::Function { name, args, body, return_type, .. } => {
             assert_eq!(name, "add");
             assert_eq!(args.len(), 2);
             assert_eq!(args[0].0, "x");
@@ -49,20 +52,26 @@ fn test_parse_function_with_multiple_args() {
             
             // Check body is a binary operation
             match *body {
-                ShenNode::BinaryOperation { operator, left, right, .. } => {
+                ShenNode::BinaryOperation { operator, left, right, result_type, .. } => {
                     assert_eq!(operator, "+");
+                    assert_eq!(result_type, ShenType::Float);
                     
                     match (*left, *right) {
-                        (ShenNode::Symbol { name: left_name, .. }, 
-                         ShenNode::Symbol { name: right_name, .. }) => {
+                        (ShenNode::Symbol { name: left_name, type_hint: left_type, .. }, 
+                         ShenNode::Symbol { name: right_name, type_hint: right_type, .. }) => {
                             assert_eq!(left_name, "x");
                             assert_eq!(right_name, "y");
+                            assert_eq!(left_type, ShenType::Symbol);
+                            assert_eq!(right_type, ShenType::Symbol);
                         },
                         _ => panic!("Expected symbol operands"),
                     }
                 },
                 _ => panic!("Expected a binary operation"),
             }
+            
+            // Check return type inference
+            assert_eq!(return_type, ShenType::Float);
         },
         _ => panic!("Expected a function node"),
     }
@@ -77,19 +86,22 @@ fn test_parse_lambda_expression() {
     
     let node = result.unwrap();
     match node {
-        ShenNode::Lambda { args, body, .. } => {
+        ShenNode::Lambda { args, body, return_type, .. } => {
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].0, "x");
+            assert_eq!(args[0].1, ShenType::Symbol);
             
             // Check body is a binary operation
             match *body {
-                ShenNode::BinaryOperation { operator, left, right, .. } => {
+                ShenNode::BinaryOperation { operator, left, right, result_type, .. } => {
                     assert_eq!(operator, "+");
+                    assert_eq!(result_type, ShenType::Float);
                     
                     match (*left, *right) {
-                        (ShenNode::Symbol { name: left_name, .. }, 
+                        (ShenNode::Symbol { name: left_name, type_hint: left_type, .. }, 
                          ShenNode::Literal { value } ) => {
                             assert_eq!(left_name, "x");
+                            assert_eq!(left_type, ShenType::Symbol);
                             assert_eq!(value, ShenValue::Float(1.0));
                         },
                         _ => panic!("Expected symbol and literal operands"),
@@ -97,6 +109,9 @@ fn test_parse_lambda_expression() {
                 },
                 _ => panic!("Expected a binary operation"),
             }
+            
+            // Check return type inference
+            assert_eq!(return_type, ShenType::Float);
         },
         _ => panic!("Expected a lambda node"),
     }
@@ -114,13 +129,15 @@ fn test_parse_conditional() {
         ShenNode::Conditional { condition, true_branch, false_branch } => {
             // Check condition
             match *condition {
-                ShenNode::BinaryOperation { operator, left, right, .. } => {
+                ShenNode::BinaryOperation { operator, left, right, result_type, .. } => {
                     assert_eq!(operator, "=");
+                    assert_eq!(result_type, ShenType::Boolean);
                     
                     match (*left, *right) {
-                        (ShenNode::Symbol { name: left_name, .. }, 
+                        (ShenNode::Symbol { name: left_name, type_hint: left_type, .. }, 
                          ShenNode::Literal { value } ) => {
                             assert_eq!(left_name, "x");
+                            assert_eq!(left_type, ShenType::Symbol);
                             assert_eq!(value, ShenValue::Float(0.0));
                         },
                         _ => panic!("Expected symbol and literal in condition"),
@@ -131,21 +148,24 @@ fn test_parse_conditional() {
             
             // Check true branch
             match *true_branch {
-                ShenNode::Symbol { name, .. } => {
+                ShenNode::Symbol { name, type_hint, .. } => {
                     assert_eq!(name, "x");
+                    assert_eq!(type_hint, ShenType::Symbol);
                 },
                 _ => panic!("Expected a symbol in true branch"),
             }
             
             // Check false branch
             match *false_branch.unwrap() {
-                ShenNode::BinaryOperation { operator, left, right, .. } => {
+                ShenNode::BinaryOperation { operator, left, right, result_type, .. } => {
                     assert_eq!(operator, "+");
+                    assert_eq!(result_type, ShenType::Float);
                     
                     match (*left, *right) {
-                        (ShenNode::Symbol { name: left_name, .. }, 
+                        (ShenNode::Symbol { name: left_name, type_hint: left_type, .. }, 
                          ShenNode::Literal { value } ) => {
                             assert_eq!(left_name, "x");
+                            assert_eq!(left_type, ShenType::Symbol);
                             assert_eq!(value, ShenValue::Float(1.0));
                         },
                         _ => panic!("Expected symbol and literal in false branch"),
