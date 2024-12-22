@@ -136,7 +136,7 @@ fn parse_conditional(tokens: &[Token]) -> Result<ShenNode, ParseError> {
 }
 
 fn parse_application(tokens: &[Token]) -> Result<ShenNode, ParseError> {
-    // Basic application parsing
+    // More robust application parsing
     if tokens.len() < 2 {
         return Err(ParseError::Syntax("Invalid application".to_string()));
     }
@@ -144,23 +144,103 @@ fn parse_application(tokens: &[Token]) -> Result<ShenNode, ParseError> {
     let func_token = &tokens[1];
     let args_tokens = &tokens[2..];
 
+    // Parse function (can be a symbol, lambda, or nested application)
     let func = match func_token {
-        Token::Identifier(name) => ShenNode::Symbol { name: name.clone() },
+        Token::Identifier(name) => ShenNode::Symbol { 
+            name: name.clone(), 
+            type_hint: ShenType::Symbol 
+        },
+        Token::OpenParen => {
+            // Handle nested function or lambda
+            parse_complex_expression(&tokens[1..])
+                .map_err(|_| ParseError::Syntax("Invalid nested function in application".to_string()))?
+        },
+        Token::Lambda => {
+            // Handle lambda directly in application
+            parse_lambda(&tokens[1..])
+                .map_err(|_| ParseError::Syntax("Invalid lambda in application".to_string()))?
+        },
         _ => return Err(ParseError::Syntax("Invalid function in application".to_string())),
     };
 
+    // Parse arguments with more flexibility
     let mut args = Vec::new();
-    for arg_token in args_tokens {
-        match arg_token {
-            Token::Identifier(name) => args.push(ShenNode::Symbol { name: name.clone() }),
-            _ => return Err(ParseError::Syntax(format!("Unsupported argument type: {:?}", arg_token))),
-        }
+    let mut current_pos = 0;
+
+    while current_pos < args_tokens.len() {
+        let (arg, consumed) = parse_application_argument(&args_tokens[current_pos..])?;
+        args.push(arg);
+        current_pos += consumed;
     }
 
     Ok(ShenNode::Application {
         func: Box::new(func),
         args,
     })
+}
+
+// Helper function to parse individual application arguments
+fn parse_application_argument(tokens: &[Token]) -> Result<(ShenNode, usize), ParseError> {
+    if tokens.is_empty() {
+        return Err(ParseError::Syntax("Unexpected end of arguments".to_string()));
+    }
+
+    match &tokens[0] {
+        Token::Identifier(name) => Ok((
+            ShenNode::Symbol { 
+                name: name.clone(), 
+                type_hint: ShenType::Symbol 
+            }, 
+            1
+        )),
+        Token::Number(value) => Ok((
+            ShenNode::Literal { 
+                value: ShenValue::Float(*value) 
+            }, 
+            1
+        )),
+        Token::Literal(value) => Ok((
+            ShenNode::Literal { 
+                value: ShenValue::String(value.clone()) 
+            }, 
+            1
+        )),
+        Token::OpenParen => {
+            // Handle nested expressions (lists, applications, etc.)
+            let mut paren_count = 0;
+            let mut end_index = 0;
+            
+            for (i, token) in tokens.iter().enumerate() {
+                match token {
+                    Token::OpenParen => paren_count += 1,
+                    Token::CloseParen => {
+                        paren_count -= 1;
+                        if paren_count == 0 {
+                            end_index = i + 1;
+                            break;
+                        }
+                    },
+                    _ => {}
+                }
+            }
+
+            if end_index == 0 {
+                return Err(ParseError::Syntax("Unbalanced parentheses in argument".to_string()));
+            }
+
+            // Recursively parse nested structure
+            let nested_tokens = &tokens[..end_index];
+            let result = match nested_tokens[1] {
+                Token::Lambda => parse_lambda(nested_tokens),
+                Token::Defun => parse_function_definition(nested_tokens),
+                Token::Identifier(_) => parse_application(nested_tokens),
+                _ => parse_list(nested_tokens),
+            }?;
+
+            Ok((result, end_index))
+        },
+        _ => Err(ParseError::Syntax(format!("Unsupported argument type: {:?}", tokens[0]))),
+    }
 }
 
 fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, ParseError> {
