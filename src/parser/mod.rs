@@ -244,7 +244,7 @@ fn parse_application_argument(tokens: &[Token]) -> Result<(ShenNode, usize), Par
 }
 
 fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, ParseError> {
-    // Basic implementation, needs more robust parsing
+    // More robust function definition parsing
     if tokens.len() < 4 {
         return Err(ParseError::Syntax("Invalid function definition".to_string()));
     }
@@ -254,15 +254,27 @@ fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, ParseError> {
             let mut args = Vec::new();
             let mut body_tokens = Vec::new();
             let mut in_args = true;
+            let mut paren_count = 1;
 
             for token in rest {
                 match token {
+                    Token::OpenParen => {
+                        if in_args {
+                            return Err(ParseError::Syntax("Unexpected parenthesis in argument list".to_string()));
+                        }
+                        paren_count += 1;
+                        body_tokens.push(token.clone());
+                    },
                     Token::CloseParen => {
-                        in_args = false;
-                        continue;
+                        paren_count -= 1;
+                        if paren_count == 0 {
+                            in_args = false;
+                            continue;
+                        }
+                        body_tokens.push(token.clone());
                     },
                     Token::Identifier(arg) if in_args => {
-                        args.push(arg.clone());
+                        args.push((arg.clone(), ShenType::Symbol));
                     },
                     _ if !in_args => {
                         body_tokens.push(token.clone());
@@ -271,11 +283,19 @@ fn parse_function_definition(tokens: &[Token]) -> Result<ShenNode, ParseError> {
                 }
             }
 
+            if paren_count != 0 {
+                return Err(ParseError::Syntax("Unbalanced parentheses in function definition".to_string()));
+            }
+
             let body = parse_expression(&body_tokens)?;
+
+            // Infer return type from body
+            let return_type = body.get_type();
 
             Ok(ShenNode::Function {
                 name: name.clone(),
                 args,
+                return_type,
                 body: Box::new(body),
             })
         },
