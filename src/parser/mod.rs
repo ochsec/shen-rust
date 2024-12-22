@@ -279,9 +279,14 @@ fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), String> {
     }
 }
 
-fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, String> {
+fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, TranspilerError> {
     if tokens.is_empty() {
-        return Err("Empty input for symbol or application".to_string());
+        return Err(TranspilerError::new_parse_error(
+            "EMPTY", 
+            "Empty input for symbol or application", 
+            0, 
+            0
+        ));
     }
 
     // Single token case: Simple symbol
@@ -303,7 +308,12 @@ fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, String> {
                     value: ShenValue::String(value.clone()) 
                 });
             },
-            _ => return Err(format!("Unsupported token for symbol: {:?}", tokens[0])),
+            token => return Err(TranspilerError::new_parse_error(
+                &format!("{:?}", token),
+                "Unsupported token for symbol",
+                0,  // Line number would ideally come from tokenizer
+                0   // Column number would ideally come from tokenizer
+            )),
         }
     }
 
