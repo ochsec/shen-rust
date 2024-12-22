@@ -196,8 +196,87 @@ fn parse_lambda(tokens: &[Token]) -> Result<ShenNode, String> {
 }
 
 fn parse_list(tokens: &[Token]) -> Result<ShenNode, String> {
-    // Placeholder for list parsing
-    Err("List parsing not implemented".to_string())
+    // Ensure the list starts and ends with parentheses
+    if tokens.first() != Some(&Token::OpenParen) || tokens.last() != Some(&Token::CloseParen) {
+        return Err("Invalid list: must be enclosed in parentheses".to_string());
+    }
+
+    // Remove outer parentheses
+    let inner_tokens = &tokens[1..tokens.len()-1];
+    
+    // Parse list elements
+    let mut elements = Vec::new();
+    let mut current_pos = 0;
+
+    while current_pos < inner_tokens.len() {
+        // Handle nested structures (nested lists, applications, etc.)
+        let (element, consumed) = parse_list_element(&inner_tokens[current_pos..])?;
+        elements.push(element);
+        current_pos += consumed;
+    }
+
+    Ok(ShenNode::List { elements })
+}
+
+// Helper function to parse individual list elements
+fn parse_list_element(tokens: &[Token]) -> Result<(ShenNode, usize), String> {
+    if tokens.is_empty() {
+        return Err("Unexpected end of list".to_string());
+    }
+
+    match tokens[0] {
+        Token::OpenParen => {
+            // Find the matching closing parenthesis
+            let mut paren_count = 0;
+            let mut end_index = 0;
+            
+            for (i, token) in tokens.iter().enumerate() {
+                match token {
+                    Token::OpenParen => paren_count += 1,
+                    Token::CloseParen => {
+                        paren_count -= 1;
+                        if paren_count == 0 {
+                            end_index = i + 1;
+                            break;
+                        }
+                    },
+                    _ => {}
+                }
+            }
+
+            if end_index == 0 {
+                return Err("Unbalanced parentheses in list".to_string());
+            }
+
+            // Recursively parse nested structure
+            let nested_tokens = &tokens[..end_index];
+            let result = if nested_tokens.len() > 2 {
+                match nested_tokens[1] {
+                    Token::Lambda => parse_lambda(nested_tokens),
+                    Token::Defun => parse_function_definition(nested_tokens),
+                    Token::Identifier(_) => parse_application(nested_tokens),
+                    _ => parse_list(nested_tokens),
+                }
+            } else {
+                parse_list(nested_tokens)
+            }?;
+
+            Ok((result, end_index))
+        },
+        Token::Identifier(ref name) => {
+            // Simple symbol
+            Ok((ShenNode::Symbol { name: name.clone() }, 1))
+        },
+        Token::Literal(ref value) => {
+            // String literal
+            Ok((ShenNode::Literal { value: value.clone() }, 1))
+        },
+        Token::Number(value) => {
+            // Numeric literal (convert to string for simplicity)
+            Ok((ShenNode::Literal { value: value.to_string() }, 1))
+        },
+        _ => Err(format!("Unsupported list element: {:?}", tokens[0])),
+    }
 }
 
 fn parse_symbol_or_application(tokens: &[Token]) -> Result<ShenNode, String> {
