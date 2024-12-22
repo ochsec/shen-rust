@@ -13,3 +13,6 @@ wheels/
 
 # Rust generated files
 target/
+
+# Reference files
+reference/
